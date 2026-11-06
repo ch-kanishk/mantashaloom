@@ -17,6 +17,7 @@ const ALLOWED: Record<string, string> = {
  *
  * Storage is chosen at runtime:
  *  - BLOB_READ_WRITE_TOKEN present (Vercel)  -> Vercel Blob
+ *  - UPLOAD_DIR set (Hostinger / any server) -> that folder on disk
  *  - otherwise (local dev)                   -> public/uploads on disk
  *
  * The local branch cannot be used on Vercel: serverless filesystems are
@@ -60,7 +61,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const dir = path.join(process.cwd(), 'public', 'uploads');
+  // UPLOAD_DIR (e.g. on Hostinger): a persistent folder outside the app, served
+  // by src/app/uploads/[file]/route.ts. Without it (local dev) files go to
+  // public/uploads, which `next start` only serves if present at build time.
+  const dir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'public', 'uploads');
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, filename), Buffer.from(await file.arrayBuffer()));
   return NextResponse.json({ url: `/uploads/${filename}` });

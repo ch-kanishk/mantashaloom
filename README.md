@@ -231,6 +231,36 @@ then redeploy.
 - Serverless filesystems are read-only apart from `/tmp`, and `/tmp` does not persist
   between invocations — hence Blob for uploads.
 
+## Deploying to Hostinger (Business / Cloud, Node.js Web App)
+
+**1. Database — Neon.** Hostinger web hosting only offers MySQL, so use a free
+[Neon](https://neon.tech) Postgres project (region: *AWS Asia Pacific — Singapore*). From
+**Connect**, copy the **pooled** string (host contains `-pooler`) for `DATABASE_URL` and
+the **direct** string (pooling toggled off) for `DIRECT_URL`. Both need `?sslmode=require`.
+
+**2. Uploads folder.** In hPanel **File Manager**, create a folder in your home directory
+*outside* the website folder, e.g. `/home/u123456789/mantashaloom-uploads`, and note its full
+path. A redeploy replaces the app folder, and `next start` does not serve files added to
+`public/` after the build, so uploads go here and are served by `src/app/uploads/[file]`.
+
+**3. Create the app.** hPanel → **Websites → Add website → Node.js Apps → Import Git
+repository**, connect GitHub and pick `ch-kanishk/mantashaloom`, branch `main`.
+
+| Setting | Value |
+| --- | --- |
+| Framework | Next.js |
+| Node version | 20.x (or 22.x) |
+| Build command | `npm run build` |
+| Start command | `npm start` |
+
+**4. Environment variables** (same screen): everything in the Vercel table above, plus
+`DATABASE_URL`, `DIRECT_URL` and `UPLOAD_DIR` (the full path from step 2). Do not set
+`BLOB_READ_WRITE_TOKEN`. `NEXT_PUBLIC_SITE_URL` must be the final `https://` domain.
+
+**5. Deploy.** The build runs the migrations against Neon. Load the demo catalogue
+(optional) from your own machine, as in Vercel step 5. Then point XPay at
+`https://your-domain.com/api/payments/xpay/webhook`. Pushing to `main` redeploys.
+
 Not included, and worth adding next: transactional order emails (the order and enquiry
 write points are the hooks), a real search index if the catalogue grows past a few thousand
 SKUs, and multi-currency.
