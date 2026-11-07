@@ -2,6 +2,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { InViewVideo } from '@/components/InViewVideo';
 import { buildMetadata } from '@/lib/seo';
 import { site } from '@/lib/config';
 
@@ -108,17 +109,12 @@ export default function ProcessPage() {
             >
               {hasVideo && (
                 <div className={i % 2 === 1 ? 'md:order-last' : undefined}>
-                  <video
-                    className="aspect-square w-full bg-sand object-cover"
+                  {/* Natural aspect: the clips mix portrait and landscape. */}
+                  <InViewVideo
+                    className="mx-auto block h-auto max-h-[80vh] w-auto max-w-full bg-sand"
                     src={`/process/${step.slug}.mp4`}
                     poster={poster}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    controls
-                    preload="metadata"
-                    aria-label={`${step.name} at the ${site.name} workshop`}
+                    label={`${step.name} at the ${site.name} workshop`}
                   />
                 </div>
               )}

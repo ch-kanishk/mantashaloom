@@ -11,3 +11,6 @@ public/uploads/*
 .DS_Store
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Raw source footage; web copies live in public/process
+process-videos/
