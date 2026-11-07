@@ -5,9 +5,9 @@ import { buildMetadata } from '@/lib/seo';
 import { site } from '@/lib/config';
 
 export const metadata = buildMetadata({
-  title: 'Our Story — Handmade Rugs from India',
+  title: 'Our Story — A Legacy Reimagined',
   description:
-    'Mantashaloom makes hand-knotted and hand-tufted rugs by hand on the loom. Read about how each rug is designed, dyed and woven.',
+    'A rug-making family since 1984. From Afgaan Arts to Mantashaloom: handmade rugs once again reaching the United States, Australia, UAE and Germany.',
   path: '/about',
 });
 
@@ -18,10 +18,9 @@ export default function AboutPage() {
 
       <header className="mx-auto max-w-3xl py-10 text-center">
         <p className="eyebrow">Our story</p>
-        <h1 className="mt-4 font-display text-5xl leading-tight">Made by hand, made to last</h1>
+        <h1 className="mt-4 font-display text-5xl leading-tight">A legacy reimagined</h1>
         <p className="mt-6 text-base leading-relaxed text-ink/65">
-          {site.name} makes rugs the way they have long been made in India — slowly, by hand, and to be
-          kept for decades.
+          Three generations of rug makers, one journey that has come full circle.
         </p>
       </header>
 
@@ -38,9 +37,9 @@ export default function AboutPage() {
 
       <div className="mx-auto mt-16 grid max-w-4xl gap-14 sm:grid-cols-3">
         {[
-          ['200+', 'Weaving families we buy from directly, with no middlemen'],
-          ['40+', 'Countries we have shipped a finished rug to'],
-          ['9 months', 'Average time to complete an 8×10 hand-knotted carpet'],
+          ['1984', 'The year our family founded Afgaan Arts'],
+          ['3 generations', 'Of rug makers, from my grandfather to me'],
+          ['4 countries', 'Our rugs reach today: the US, Australia, UAE and Germany'],
         ].map(([stat, label]) => (
           <div key={stat} className="text-center">
             <p className="font-display text-4xl text-brand-700">{stat}</p>
@@ -48,6 +47,39 @@ export default function AboutPage() {
           </div>
         ))}
       </div>
+
+      <section className="mx-auto mt-20 max-w-3xl space-y-5 text-[15px] leading-relaxed text-ink/75">
+        <h2 className="mb-3 font-display text-3xl text-ink">Our story</h2>
+        <p>
+          Our journey began in 1984, when my grandfather, my father, and my five uncles came together to
+          establish a rug manufacturing company called Afgaan Arts. Built on craftsmanship, dedication, and
+          family values, the company grew into a successful business, exporting handmade rugs to countries
+          including Germany, the United States, Canada, and Australia.
+        </p>
+        <p>
+          Over time, changing circumstances led to a decline in exports, and eventually, the company had to
+          close. Our family continued its passion for rug making by working in India&rsquo;s manufacturing
+          industry.
+        </p>
+        <p>
+          As I grew older, I knew I wanted to carry this legacy forward. At the age of 20, I decided to build
+          something of my own. With seven years of learning, hands-on experience, hard work, determination,
+          and my family&rsquo;s support, I developed the skills and confidence to establish my own company.
+        </p>
+        <p>
+          Today, my journey has come full circle. Our rugs are once again reaching international markets,
+          including the United States, Australia, UAE, and Germany.
+        </p>
+        <blockquote className="border-l-2 border-brand-600 pl-5 font-display text-xl leading-snug text-ink">
+          With {site.name}, my vision is to bring the beauty of natural materials, traditional craftsmanship,
+          and thoughtfully designed rugs into homes around the world.
+        </blockquote>
+        <p>
+          Every rug we create carries a part of our family&rsquo;s heritage, years of experience, and a passion
+          for timeless craftsmanship.
+        </p>
+        <p className="font-display text-lg text-ink">Thank you for being a part of our journey.</p>
+      </section>
 
       <section className="mx-auto mt-20 max-w-3xl space-y-8 text-[15px] leading-relaxed text-ink/75">
         <div>
