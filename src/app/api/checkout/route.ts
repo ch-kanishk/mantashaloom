@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { priceCart } from '@/lib/pricing';
-import { createPaymentOrder } from '@/lib/xpay';
+import { createRazorpayOrder, getRazorpayConfig, isMockPaymentsAllowed, isRazorpayConfigured } from '@/lib/razorpay';
 import { orderNumber } from '@/lib/utils';
 import { site } from '@/lib/config';
 
@@ -38,6 +38,14 @@ export async function POST(req: Request) {
   }
 
   const { customer, items } = parsed;
+
+  if (!isRazorpayConfigured() && !isMockPaymentsAllowed()) {
+    console.error('[checkout] RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not set');
+    return NextResponse.json(
+      { error: 'Online payment is not available right now. Please contact us to place your order.' },
+      { status: 503 }
+    );
+  }
 
   try {
     const priced = await priceCart(items);
@@ -79,28 +87,41 @@ export async function POST(req: Request) {
       },
     });
 
-    const payment = await createPaymentOrder({
-      orderNumber: order.orderNumber,
+    // Dev server without keys: simulated gateway page.
+    if (!isRazorpayConfigured()) {
+      await prisma.order.update({ where: { id: order.id }, data: { paymentProvider: 'mock' } });
+      const query = new URLSearchParams({ order: order.orderNumber, amount: String(order.total) });
+      return NextResponse.json({ orderNumber: order.orderNumber, paymentUrl: `/checkout/mock-gateway?${query}` });
+    }
+
+    const rzpOrder = await createRazorpayOrder({
       amount: order.total,
       currency: order.currency,
-      customer: {
-        name: `${customer.firstName} ${customer.lastName}`,
-        email: customer.email,
-        phone: customer.phone,
-      },
-      returnUrl: `${site.url}/api/payments/xpay/callback`,
-      webhookUrl: `${site.url}/api/payments/xpay/webhook`,
-      description: `${site.name} order ${order.orderNumber}`,
+      receipt: order.orderNumber,
+      notes: { orderNumber: order.orderNumber },
     });
 
     await prisma.order.update({
       where: { id: order.id },
-      data: { xpayOrderId: payment.gatewayOrderId, paymentRaw: JSON.stringify(payment.raw) },
+      data: { paymentProvider: 'razorpay', gatewayOrderId: rzpOrder.id, paymentRaw: JSON.stringify(rzpOrder) },
     });
 
+    // Everything the browser needs to open Razorpay Checkout. The key id is public by design.
     return NextResponse.json({
       orderNumber: order.orderNumber,
-      paymentUrl: payment.paymentUrl,
+      razorpay: {
+        key: getRazorpayConfig().keyId,
+        orderId: rzpOrder.id,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        name: site.name,
+        description: `Order ${order.orderNumber}`,
+        prefill: {
+          name: `${customer.firstName} ${customer.lastName}`,
+          email: customer.email,
+          contact: customer.phone,
+        },
+      },
     });
   } catch (err) {
     console.error('[checkout]', err);

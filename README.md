@@ -7,7 +7,7 @@
 
 A production-shaped storefront and admin for a handmade-rug business, with a
  SEO-first catalogue pages, a merchant admin for listings/orders/blog,
-and checkout through the **XPay** gateway.
+and checkout through **Razorpay**.
 
 **Theme:** dark, set in `tailwind.config.ts`: `ink` is the light text colour, `paper` the page, `sand` raised
 surfaces and `night` the deepest bands. Use `text-white` only over photos, and `text-paper` on `bg-ink` buttons.
@@ -40,8 +40,8 @@ is a pooled connection.
 
 Admin: **http://localhost:3000/admin** — sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`.
 
-Out of the box `XPAY_MODE=mock`, so you can place a full test order without any gateway
-credentials — checkout redirects to a local stand-in for XPay's hosted page.
+With no Razorpay keys in `.env`, the dev server sends checkout to a simulated payment page, so
+you can place a full test order without an account. (A production build refuses checkout instead.)
 
 ---
 
@@ -49,39 +49,45 @@ credentials — checkout redirects to a local stand-in for XPay's hosted page.
 
 | Variable | What it does |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical origin. Used for canonicals, OG tags, sitemap and the XPay return/webhook URLs. **Must match the origin you actually serve from.** |
+| `NEXT_PUBLIC_SITE_URL` | Canonical origin. Used for canonicals, OG tags, sitemap and the Razorpay checkout branding. **Must match the origin you actually serve from.** |
 | `DATABASE_URL` | Pooled PostgreSQL connection used by the app. |
 | `DIRECT_URL` | Unpooled connection, used only by migrations (a transaction pooler cannot run them). Without a pooler, set it the same as `DATABASE_URL`. |
 | `BLOB_READ_WRITE_TOKEN` | Set automatically by a Vercel Blob store. When absent locally, uploads fall back to `public/uploads`. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | The single admin credential. |
 | `AUTH_SECRET` | HMAC key for the admin session cookie. Use 32+ random characters. |
-| `XPAY_MODE` | `mock` (no credentials needed), `test`, or `live`. |
-| `XPAY_BASE_URL`, `XPAY_MERCHANT_ID`, `XPAY_API_KEY`, `XPAY_SALT`, `XPAY_WEBHOOK_SECRET` | From your XPay merchant dashboard. |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay API keys (test `rzp_test_…` or live `rzp_live_…`). Empty = simulated payments, dev server only. |
+| `RAZORPAY_WEBHOOK_SECRET` | The secret you set on the Razorpay webhook. |
 | `FREE_SHIPPING_ABOVE`, `FLAT_SHIPPING_FEE`, `GST_PERCENT` | Store rules, in rupees / percent. |
 
 Money is stored as **integer paise** everywhere. Only `formatMoney()` converts for display.
 
 ---
 
-## Payments (XPay)
+## Payments (Razorpay)
 
-All gateway code lives in [`src/lib/xpay.ts`](src/lib/xpay.ts). The flow:
+Gateway calls live in [`src/lib/razorpay.ts`](src/lib/razorpay.ts); order confirmation in
+`confirmRazorpayPayment()` in [`src/lib/orders.ts`](src/lib/orders.ts). The flow (Razorpay
+Standard Checkout):
 
 1. `POST /api/checkout` re-prices the cart **from the database** (client prices are never trusted),
-   writes a `PENDING` order, then calls XPay to create a payment order.
-2. The shopper is redirected to XPay's hosted page.
-3. XPay returns them to `/api/payments/xpay/callback`. That route does **not** trust the
-   browser — it re-queries XPay server-to-server before marking anything paid.
-4. XPay also calls `/api/payments/xpay/webhook`, the authoritative signal. Its HMAC-SHA256
-   signature is verified against the raw body before any write.
+   writes a `PENDING` order, creates a Razorpay order for the same amount, and returns its id.
+2. The browser opens the Razorpay popup (UPI, cards, netbanking, wallets).
+3. On success the popup returns payment id + signature, posted to
+   `/api/payments/razorpay/verify`. The server checks the HMAC signature, then fetches the
+   payment from Razorpay and confirms it belongs to this order with the exact amount. A
+   payment left `authorized` (manual-capture accounts) is captured before the order is paid.
+4. Razorpay also calls `/api/payments/razorpay/webhook` (signature-checked over the raw body),
+   so the order is confirmed even if the shopper closes the tab mid-payment.
 
-`markOrderPaid()` is idempotent, so the callback and webhook racing each other cannot
-decrement stock twice.
+`markOrderPaid()` is idempotent, so verify and webhook racing each other cannot decrement
+stock twice. The cart is kept until payment succeeds, so a cancelled popup loses nothing.
 
-**If your XPay account uses different field names,** only `buildOrderPayload()` and
-`parseGatewayEvent()` need editing — nothing else touches the gateway.
-
-Point your XPay dashboard webhook at `https://your-domain.com/api/payments/xpay/webhook`.
+**Razorpay dashboard setup:**
+- **API Keys:** Account & Settings → API Keys → generate. Set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
+- **Webhook:** Account & Settings → Webhooks → Add. URL
+  `https://your-domain.com/api/payments/razorpay/webhook`, a secret of your choice (also set as
+  `RAZORPAY_WEBHOOK_SECRET`), events `payment.authorized`, `payment.captured`, `order.paid`.
+- Test and live mode have **separate** keys and webhooks; set both up when you go live.
 
 ---
 
@@ -198,13 +204,11 @@ Production *and* Preview:
 | `NEXT_PUBLIC_SITE_URL` | `https://your-domain.com` — no trailing slash |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your real admin credentials |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
-| `XPAY_MODE` | `live` (or `test` while integrating) |
-| `XPAY_BASE_URL`, `XPAY_MERCHANT_ID`, `XPAY_API_KEY`, `XPAY_SALT`, `XPAY_WEBHOOK_SECRET` | from the XPay dashboard |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | from the Razorpay dashboard (see Payments) |
 | `STORE_CURRENCY`, `FREE_SHIPPING_ABOVE`, `FLAT_SHIPPING_FEE`, `GST_PERCENT` | store rules |
 
 `NEXT_PUBLIC_SITE_URL` is baked in at build time and is used for canonicals, OG tags, the
-sitemap **and the XPay return/webhook URLs** — if it is wrong, payments come back to the
-wrong origin. Change it and redeploy, do not just edit and restart.
+sitemap — if it is wrong, links and previews point at the wrong origin. Change it and redeploy, do not just edit and restart.
 
 **5. Deploy.** The first deploy runs the migration and creates empty tables. To load the
 demo catalogue (optional), run the seed locally against the production database:
@@ -217,7 +221,7 @@ A `DATABASE_URL` given on the command line always wins over `.env`, and `DIRECT_
 paired to it automatically — so this cannot accidentally target your local database.
 `npm run db:deploy` prints the host and database it is about to touch before running.
 
-**6. Point XPay at the webhook:** `https://your-domain.com/api/payments/xpay/webhook`.
+**6. Add the Razorpay webhook:** `https://your-domain.com/api/payments/razorpay/webhook` (see Payments).
 
 **7. Add your domain** (Settings → Domains) and update `NEXT_PUBLIC_SITE_URL` to match,
 then redeploy.
@@ -258,8 +262,8 @@ repository**, connect GitHub and pick `ch-kanishk/mantashaloom`, branch `main`.
 `BLOB_READ_WRITE_TOKEN`. `NEXT_PUBLIC_SITE_URL` must be the final `https://` domain.
 
 **5. Deploy.** The build runs the migrations against Neon. Load the demo catalogue
-(optional) from your own machine, as in Vercel step 5. Then point XPay at
-`https://your-domain.com/api/payments/xpay/webhook`. Pushing to `main` redeploys.
+(optional) from your own machine, as in Vercel step 5. Then add the Razorpay webhook
+`https://your-domain.com/api/payments/razorpay/webhook` (see Payments). Pushing to `main` redeploys.
 
 Not included, and worth adding next: transactional order emails (the order and enquiry
 write points are the hooks), a real search index if the catalogue grows past a few thousand

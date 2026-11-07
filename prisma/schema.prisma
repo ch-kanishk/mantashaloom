@@ -116,12 +116,12 @@ model Order {
   total       Int
   currency    String @default("INR")
 
-  // Payment (XPay)
-  paymentProvider String? @default("xpay")
-  xpayOrderId     String?
-  xpayPaymentId   String?
-  xpaySignature   String?
-  paymentRaw      String?  // JSON blob of gateway response
+  // Payment (Razorpay)
+  paymentProvider  String? @default("razorpay")
+  gatewayOrderId   String?  // Razorpay order_…
+  gatewayPaymentId String?  // Razorpay pay_…
+  gatewaySignature String?
+  paymentRaw       String?  // JSON blob of gateway response
 
   trackingNumber String?
   carrier        String?
@@ -134,6 +134,7 @@ model Order {
   @@index([status])
   @@index([email])
   @@index([createdAt])
+  @@index([gatewayOrderId])
 }
 
 model OrderItem {

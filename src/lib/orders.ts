@@ -1,4 +1,5 @@
 import { prisma } from './db';
+import { ensureCaptured, type RazorpayPayment } from './razorpay';
 
 /**
  * Marks an order paid exactly once and decrements stock in the same transaction.
@@ -29,8 +30,8 @@ export async function markOrderPaid(
       data: {
         status: 'PROCESSING',
         paymentStatus: 'PAID',
-        xpayPaymentId: paymentId ?? order.xpayPaymentId,
-        xpaySignature: signature ?? order.xpaySignature,
+        gatewayPaymentId: paymentId ?? order.gatewayPaymentId,
+        gatewaySignature: signature ?? order.gatewaySignature,
         paymentRaw: raw ? JSON.stringify(raw) : order.paymentRaw,
       },
       include: { items: true },
@@ -50,4 +51,30 @@ export async function markOrderFailed(orderNumber: string, raw?: unknown) {
       paymentRaw: raw ? JSON.stringify(raw) : order.paymentRaw,
     },
   });
+}
+
+/**
+ * Confirm a Razorpay payment against our order and mark it PAID. Used by both the
+ * browser verify call and the webhook. The payment must belong to this order's
+ * Razorpay order and match its amount and currency exactly.
+ */
+export async function confirmRazorpayPayment(
+  order: { orderNumber: string; gatewayOrderId: string | null; total: number; currency: string },
+  payment: RazorpayPayment,
+  signature?: string
+): Promise<'PAID' | 'PENDING' | 'FAILED'> {
+  if (!order.gatewayOrderId || payment.order_id !== order.gatewayOrderId) {
+    throw new Error(`Payment ${payment.id} does not belong to order ${order.orderNumber}`);
+  }
+  if (payment.amount !== order.total || payment.currency !== order.currency) {
+    throw new Error(`Payment ${payment.id} amount ${payment.amount} ${payment.currency} does not match order total`);
+  }
+
+  const settled = await ensureCaptured(payment);
+  if (settled.status === 'captured') {
+    await markOrderPaid(order.orderNumber, { paymentId: settled.id, signature, raw: settled });
+    return 'PAID';
+  }
+  // A failed attempt does not fail the order: the shopper can retry in the popup.
+  return settled.status === 'failed' ? 'FAILED' : 'PENDING';
 }

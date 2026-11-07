@@ -84,7 +84,7 @@ export function CartView() {
         </dl>
         <Link href="/checkout" className="btn-primary mt-7 w-full">Proceed to checkout</Link>
         <Link href="/rugs" className="btn-ghost mt-2 w-full">Continue shopping</Link>
-        <p className="mt-5 text-center text-[11px] text-ink/55">Secure payments processed by XPay</p>
+        <p className="mt-5 text-center text-[11px] text-ink/55">Secure payments processed by Razorpay</p>
       </aside>
     </div>
   );

@@ -4,8 +4,8 @@
   "regions": ["bom1"],
   "functions": {
     "src/app/api/checkout/route.ts": { "maxDuration": 30 },
-    "src/app/api/payments/xpay/callback/route.ts": { "maxDuration": 30 },
-    "src/app/api/payments/xpay/webhook/route.ts": { "maxDuration": 30 },
+    "src/app/api/payments/razorpay/verify/route.ts": { "maxDuration": 30 },
+    "src/app/api/payments/razorpay/webhook/route.ts": { "maxDuration": 30 },
     "src/app/api/admin/upload/route.ts": { "maxDuration": 60 }
   }
 }

@@ -89,7 +89,7 @@ export function Footer() {
           <div className="container-page flex flex-col gap-3 py-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
             <p>© {new Date().getFullYear()} {site.name}. All rights reserved.</p>
             <p className="flex items-center gap-3">
-              <span>Secure payments by XPay</span>
+              <span>Secure payments by Razorpay</span>
               <span aria-hidden="true">·</span>
               <a href={`mailto:${site.email}`} className="hover:text-white">{site.email}</a>
             </p>

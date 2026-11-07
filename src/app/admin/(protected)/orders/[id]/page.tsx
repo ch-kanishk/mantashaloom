@@ -59,10 +59,10 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
           <section className="card p-6">
             <h2 className="mb-4 font-display text-xl">Payment</h2>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div><dt className="label">Provider</dt><dd>{order.paymentProvider ?? 'xpay'}</dd></div>
+              <div><dt className="label">Provider</dt><dd>{order.paymentProvider ?? 'razorpay'}</dd></div>
               <div><dt className="label">Payment status</dt><dd><StatusBadge status={order.paymentStatus} /></dd></div>
-              <div><dt className="label">XPay order id</dt><dd className="break-all font-mono text-xs">{order.xpayOrderId ?? '—'}</dd></div>
-              <div><dt className="label">XPay payment id</dt><dd className="break-all font-mono text-xs">{order.xpayPaymentId ?? '—'}</dd></div>
+              <div><dt className="label">Razorpay order id</dt><dd className="break-all font-mono text-xs">{order.gatewayOrderId ?? '—'}</dd></div>
+              <div><dt className="label">Razorpay payment id</dt><dd className="break-all font-mono text-xs">{order.gatewayPaymentId ?? '—'}</dd></div>
             </dl>
             {order.paymentRaw && (
               <details className="mt-4">

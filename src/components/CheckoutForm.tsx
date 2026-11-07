@@ -10,6 +10,42 @@ interface Quote {
   subtotal: number; shippingFee: number; taxAmount: number; total: number; currency: string;
 }
 
+interface RazorpaySession {
+  key: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  prefill: { name: string; email: string; contact: string };
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on: (event: string, cb: (response: any) => void) => void;
+    };
+  }
+}
+
+/** Load Razorpay's checkout script once, on demand. */
+function loadRazorpay(): Promise<void> {
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-razorpay]');
+    const script = existing ?? document.createElement('script');
+    script.addEventListener('load', () => resolve());
+    script.addEventListener('error', () => reject(new Error('Could not load Razorpay. Check your connection and retry.')));
+    if (!existing) {
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.dataset.razorpay = '';
+      document.body.appendChild(script);
+    }
+  });
+}
+
 const INDIAN_STATES = [
   'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Delhi','Goa','Gujarat','Haryana',
   'Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya',
@@ -22,6 +58,7 @@ export function CheckoutForm() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
 
   // Server re-prices the cart — the displayed total always comes from the API.
   useEffect(() => {
@@ -75,13 +112,70 @@ export function CheckoutForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Checkout failed.');
-      // Cart is cleared only after the order row exists; the order page can restore context.
-      clear();
-      window.location.href = data.paymentUrl;
+
+      // Dev server without Razorpay keys: simulated gateway page.
+      if (data.paymentUrl) {
+        clear();
+        window.location.href = data.paymentUrl;
+        return;
+      }
+
+      await openRazorpay(data.orderNumber, data.razorpay as RazorpaySession);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed.');
       setSubmitting(false);
     }
+  }
+
+  async function openRazorpay(orderNumber: string, session: RazorpaySession) {
+    await loadRazorpay();
+    const rzp = new window.Razorpay!({
+      key: session.key,
+      order_id: session.orderId,
+      amount: session.amount,
+      currency: session.currency,
+      name: session.name,
+      description: session.description,
+      image: `${window.location.origin}/apple-touch-icon.png`,
+      prefill: session.prefill,
+      notes: { orderNumber },
+      theme: { color: '#b07c58' },
+      // The cart stays until payment succeeds, so a cancelled popup loses nothing.
+      handler: async (response: {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+      }) => {
+        setStatus('Confirming your payment…');
+        try {
+          const res = await fetch('/api/payments/razorpay/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderNumber, ...response }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Payment could not be verified.');
+          clear();
+          window.location.href = data.redirect;
+        } catch {
+          // Razorpay has taken the payment; the webhook will settle the order.
+          clear();
+          window.location.href = `/order/${orderNumber}?status=pending`;
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          setSubmitting(false);
+          setStatus('');
+          setError('Payment was cancelled. Your cart is saved, so you can try again.');
+        },
+      },
+    });
+    rzp.on('payment.failed', (response) => {
+      setError(response?.error?.description || 'Payment failed. Please try another method.');
+    });
+    setStatus('Complete payment in the Razorpay window…');
+    rzp.open();
   }
 
   return (
@@ -187,10 +281,11 @@ export function CheckoutForm() {
         {error && <p role="alert" className="mt-4 text-sm text-red-400">{error}</p>}
 
         <button type="submit" disabled={submitting || !quote} className="btn-primary mt-6 w-full">
-          {submitting ? 'Redirecting to XPay…' : 'Pay securely with XPay'}
+          {submitting ? status || 'Opening secure payment…' : 'Pay securely'}
         </button>
         <p className="mt-4 text-center text-[11px] leading-relaxed text-ink/55">
-          You will be redirected to XPay&rsquo;s secure page to complete payment. We never see or store your card details.
+          Pay by UPI, card, netbanking or wallet through Razorpay&rsquo;s secure checkout. We never see or store your
+          card details.
         </p>
       </aside>
     </form>

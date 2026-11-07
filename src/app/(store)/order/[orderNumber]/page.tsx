@@ -17,7 +17,7 @@ const COPY: Record<string, { title: string; body: string; tone: string }> = {
   },
   pending: {
     title: 'Payment is being confirmed',
-    body: 'XPay has not finalised this payment yet. This page updates once the gateway confirms — we will also email you.',
+    body: 'Razorpay has not finalised this payment yet. This page updates once the gateway confirms — we will also email you.',
     tone: 'text-amber-700',
   },
   failed: {
@@ -62,7 +62,7 @@ export default async function OrderPage({
         </div>
         <div>
           <p className="label">Payment</p>
-          <p>{order.paymentStatus} · XPay</p>
+          <p>{order.paymentStatus} · {order.paymentProvider === 'mock' ? 'Test payment' : 'Razorpay'}</p>
         </div>
       </div>
 
