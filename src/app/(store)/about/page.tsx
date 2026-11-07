@@ -107,8 +107,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <div className="mt-16 text-center">
+      <div className="mt-16 flex flex-wrap justify-center gap-4">
         <Link href="/rugs" className="btn-primary">Shop the collection</Link>
+        <Link href="/process" className="btn border border-ink/20 text-ink hover:border-ink/50">See how our rugs are made</Link>
       </div>
     </div>
   );

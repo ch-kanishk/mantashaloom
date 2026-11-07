@@ -13,6 +13,7 @@ const NAV = [
   { label: 'New Arrivals', href: '/new-arrivals' },
   { label: 'Custom Rugs', href: '/custom-orders' },
   { label: 'Our Story', href: '/about' },
+  { label: 'Our Process', href: '/process' },
   { label: 'Journal', href: '/blog' },
 ];
 
